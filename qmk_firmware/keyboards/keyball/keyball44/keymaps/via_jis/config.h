@@ -35,15 +35,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #define TAP_CODE_DELAY 5
 
-// ---- Layer 数を 7 に拡張 (Layer 6 を AML 専用にするため) ----
-#define DYNAMIC_KEYMAP_LAYER_COUNT 7
-
 // ---- Auto Mouse Layer ----
-// Layer 3 はベース keymap で「scroll mode 自動 ON」用に予約されているので
-// 衝突回避のため Layer 6 を AML 用に使う。keyboard_post_init_user で
-// 起動時に set_auto_mouse_enable(true) を呼ぶことで EEPROM 値に依らず ON。
+// 既存の Yowkees/keyball via keymap が AML 自体は有効化済み。
+// 起動時にコード側で set_auto_mouse_enable(true) を呼ぶことで EEPROM 状態に依らず ON。
 #define POINTING_DEVICE_AUTO_MOUSE_ENABLE
-#define AUTO_MOUSE_DEFAULT_LAYER 6
+#define AUTO_MOUSE_DEFAULT_LAYER 1
 #define AUTO_MOUSE_TIME 500
 #define AUTO_MOUSE_DELAY 0
 #define AUTO_MOUSE_THRESHOLD 1

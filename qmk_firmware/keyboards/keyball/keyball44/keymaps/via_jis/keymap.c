@@ -73,11 +73,8 @@ void oledkit_render_info_user(void) {
 #endif
 
 // ---- Auto Mouse Layer を起動時から ON にする ----
-// keyball.c の keyboard_post_init_kb 終端で EEPROM の amle 値で
-// set_auto_mouse_enable() が呼ばれるため、その後に走る
-// keyboard_post_init_user で再度 ON にすることで EEPROM 値を上書きする。
 #ifdef POINTING_DEVICE_AUTO_MOUSE_ENABLE
-void keyboard_post_init_user(void) {
+void pointing_device_init_user(void) {
     set_auto_mouse_enable(true);
 }
 #endif
