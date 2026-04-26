@@ -79,6 +79,42 @@ void pointing_device_init_user(void) {
 }
 #endif
 
+// ---- JIS互換変換のON/OFFトグル ----
+// Remap UI 上では `Kb 28` として割り当て可能。状態は eeconfig_user に永続化。
+enum custom_keycodes {
+    JIS_TGL = QK_KB_28,
+};
+
+typedef union {
+    uint32_t raw;
+    struct {
+        bool    jis_compat_enabled : 1;
+        uint8_t magic              : 7;  // 初期化済み判定用 (=0x55 を入れる)
+    };
+} user_config_t;
+
+#define USER_CONFIG_MAGIC 0x55
+
+static user_config_t user_config;
+
+void keyboard_post_init_user(void) {
+    user_config.raw = eeconfig_read_user();
+    // magic未一致 = 初回起動 or 別ファームの残骸。デフォルト(ON)で初期化＆保存。
+    if (user_config.magic != USER_CONFIG_MAGIC) {
+        user_config.raw = 0;
+        user_config.magic = USER_CONFIG_MAGIC;
+        user_config.jis_compat_enabled = true;
+        eeconfig_update_user(user_config.raw);
+    }
+}
+
+void eeconfig_init_user(void) {
+    user_config.raw = 0;
+    user_config.magic = USER_CONFIG_MAGIC;
+    user_config.jis_compat_enabled = true;
+    eeconfig_update_user(user_config.raw);
+}
+
 // ---- Remap (VIA) で割り当てたキーが JIS Windows 環境でラベル通りに出るようにする ----
 // Remap UI は US 配列前提でキーラベルを表示・送信する。Windows を JIS のままで使いたいので、
 // ファーム側で全記号キーを「JIS 環境で同じ記号を生む keymap_japanese.h のキー」に置換する。
@@ -96,6 +132,18 @@ static void send_jis_replacement(uint16_t replacement, bool pressed) {
 }
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    // JIS互換のON/OFFトグル
+    if (keycode == JIS_TGL) {
+        if (record->event.pressed) {
+            user_config.jis_compat_enabled = !user_config.jis_compat_enabled;
+            eeconfig_update_user(user_config.raw);
+        }
+        return false;
+    }
+
+    // OFF時は素通し
+    if (!user_config.jis_compat_enabled) return true;
+
     const uint8_t real_mods   = get_mods();
     const uint8_t shift_mods  = real_mods & MOD_MASK_SHIFT;
 
