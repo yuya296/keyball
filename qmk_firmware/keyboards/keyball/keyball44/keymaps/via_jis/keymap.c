@@ -40,8 +40,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   ),
 
   [2] = LAYOUT_universal(
-    _______  ,S(KC_QUOT), KC_7     , KC_8    , KC_9     , S(KC_8)  ,                                         S(KC_9)  , S(KC_1)  , S(KC_6)  , KC_LBRC  , S(KC_4)  , _______  ,
-    _______  ,S(KC_SCLN), KC_4     , KC_5    , KC_6     , KC_RBRC  ,                                         KC_NUHS  , KC_MINS  , S(KC_EQL), S(KC_3)  , KC_QUOT  , S(KC_2)  ,
+    _______  , KC_QUOT  , KC_7     , KC_8    , KC_9     , S(KC_8)  ,                                         S(KC_9)  , S(KC_1)  , S(KC_6)  , KC_LBRC  , S(KC_4)  , _______  ,
+    _______  , KC_SCLN  , KC_4     , KC_5    , KC_6     , KC_RBRC  ,                                         KC_NUHS  , KC_MINS  , S(KC_EQL), S(KC_3)  , KC_QUOT  , KC_2     ,
     _______  ,S(KC_MINS), KC_1     , KC_2    , KC_3     ,S(KC_RBRC),                                        S(KC_NUHS),S(KC_INT1), KC_EQL   ,S(KC_LBRC),S(KC_SLSH),S(KC_INT3),
                   KC_0     , KC_DOT  , _______  ,         _______  , _______  ,                   KC_DEL   , _______  , _______       , _______  , _______
   ),
@@ -79,34 +79,26 @@ void pointing_device_init_user(void) {
 }
 #endif
 
-// ---- 切り分け用: Shift+KC_2 → JP_AT を直接処理 ----
-// この関数がトリガーされて @ が出れば「Key Overrides 機構が動いていない」と確定する。
-bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    if (record->event.pressed && keycode == KC_2 && (get_mods() & MOD_MASK_SHIFT)) {
-        const uint8_t saved_mods = get_mods();
-        del_mods(MOD_MASK_SHIFT);
-        tap_code(KC_LBRC);  // JP_AT == KC_LBRC
-        set_mods(saved_mods);
-        return false;
-    }
-    return true;
-}
-
 // ---- Remap (VIA) で割り当てたキーが JIS Windows 環境でラベル通りに出るようにする ----
 // Remap UI は US 配列前提で表示・送信する。Windows を JIS のままで使いたいので、
 // ファーム側で全記号キーを「JIS 環境で同じ記号を生む keymap_japanese.h のキー」に置換する。
 // JP_* マクロは内部で必要に応じて Shift を含むため、suppressed_mods (= trigger_mods) で
 // 元の Shift を消した上で送り直す ko_make_basic の挙動でちょうど整合する。
 
+// shift ありの override が先に評価されるよう、shift なしの override は
+// physical Shift 同時押し時にはマッチしないようにする。
+#define KO_UNSHIFTED(trigger_key, replacement_key) \
+    ko_make_with_layers_and_negmods(0, trigger_key, replacement_key, ~0, MOD_MASK_SHIFT)
+
 // shift なし (記号そのものを送りたいキー)
-const key_override_t ko_grv  = ko_make_basic(0, KC_GRV,  JP_GRV);
-const key_override_t ko_mins = ko_make_basic(0, KC_MINS, JP_MINS);
-const key_override_t ko_eql  = ko_make_basic(0, KC_EQL,  JP_EQL);
-const key_override_t ko_lbrc = ko_make_basic(0, KC_LBRC, JP_LBRC);
-const key_override_t ko_rbrc = ko_make_basic(0, KC_RBRC, JP_RBRC);
-const key_override_t ko_bsls = ko_make_basic(0, KC_BSLS, JP_BSLS);
-const key_override_t ko_scln = ko_make_basic(0, KC_SCLN, JP_SCLN);
-const key_override_t ko_quot = ko_make_basic(0, KC_QUOT, JP_QUOT);
+const key_override_t ko_grv  = KO_UNSHIFTED(KC_GRV,  JP_GRV);
+const key_override_t ko_mins = KO_UNSHIFTED(KC_MINS, JP_MINS);
+const key_override_t ko_eql  = KO_UNSHIFTED(KC_EQL,  JP_EQL);
+const key_override_t ko_lbrc = KO_UNSHIFTED(KC_LBRC, JP_LBRC);
+const key_override_t ko_rbrc = KO_UNSHIFTED(KC_RBRC, JP_RBRC);
+const key_override_t ko_bsls = KO_UNSHIFTED(KC_BSLS, JP_BSLS);
+const key_override_t ko_scln = KO_UNSHIFTED(KC_SCLN, JP_SCLN);
+const key_override_t ko_quot = KO_UNSHIFTED(KC_QUOT, JP_QUOT);
 
 // shift あり (US で Shift+X として表現される記号)
 const key_override_t ko_s_grv  = ko_make_basic(MOD_MASK_SHIFT, KC_GRV,  JP_TILD);
