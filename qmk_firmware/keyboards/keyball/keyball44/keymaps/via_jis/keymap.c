@@ -79,6 +79,19 @@ void pointing_device_init_user(void) {
 }
 #endif
 
+// ---- 切り分け用: Shift+KC_2 → JP_AT を直接処理 ----
+// この関数がトリガーされて @ が出れば「Key Overrides 機構が動いていない」と確定する。
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    if (record->event.pressed && keycode == KC_2 && (get_mods() & MOD_MASK_SHIFT)) {
+        const uint8_t saved_mods = get_mods();
+        del_mods(MOD_MASK_SHIFT);
+        tap_code(KC_LBRC);  // JP_AT == KC_LBRC
+        set_mods(saved_mods);
+        return false;
+    }
+    return true;
+}
+
 // ---- Remap (VIA) で割り当てたキーが JIS Windows 環境でラベル通りに出るようにする ----
 // Remap UI は US 配列前提で表示・送信する。Windows を JIS のままで使いたいので、
 // ファーム側で全記号キーを「JIS 環境で同じ記号を生む keymap_japanese.h のキー」に置換する。
