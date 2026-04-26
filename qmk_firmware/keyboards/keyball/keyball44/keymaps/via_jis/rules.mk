@@ -1,0 +1,15 @@
+RGBLIGHT_ENABLE = yes
+
+OLED_ENABLE = yes
+
+VIA_ENABLE = yes
+
+KEY_OVERRIDE_ENABLE = yes
+
+# サイズオーバー時に段階的に有効化して flash を空ける
+# MAGIC_ENABLE = no
+# CONSOLE_ENABLE = no
+# COMMAND_ENABLE = no
+# MOUSEKEY_ENABLE = no
+# GRAVE_ESC_ENABLE = no
+# SPACE_CADET_ENABLE = no
