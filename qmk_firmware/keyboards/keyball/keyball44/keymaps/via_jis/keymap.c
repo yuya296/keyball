@@ -80,45 +80,87 @@ void pointing_device_init_user(void) {
 #endif
 
 // ---- Remap (VIA) で割り当てたキーが JIS Windows 環境でラベル通りに出るようにする ----
-// Remap UI は US 配列前提で表示・送信する。Windows を JIS のままで使いたいので、
+// Remap UI は US 配列前提でキーラベルを表示・送信する。Windows を JIS のままで使いたいので、
 // ファーム側で全記号キーを「JIS 環境で同じ記号を生む keymap_japanese.h のキー」に置換する。
-// JP_* マクロは内部で必要に応じて Shift を含むため、suppressed_mods (= trigger_mods) で
-// 元の Shift を消した上で送り直す ko_make_basic の挙動でちょうど整合する。
+//
+// key_override では「物理Shift+物理キー」しか捕まえられず、Remap で `@` 等を選んで保存された
+// `S(KC_2)` 形式の合成 keycode (QK_MODS|KC_x) は trigger 完全一致しないため発火しない。
+// そのため process_record_user で「素の KC_x」と「合成された S(KC_x)」の両方を捕まえてテーブル変換する。
 
-// shift ありの override が先に評価されるよう、shift なしの override は
-// physical Shift 同時押し時にはマッチしないようにする。
-#define KO_UNSHIFTED(trigger_key, replacement_key) \
-    ko_make_with_layers_and_negmods(0, trigger_key, replacement_key, ~0, MOD_MASK_SHIFT)
+static void send_jis_replacement(uint16_t replacement, bool pressed) {
+    if (pressed) {
+        register_code16(replacement);
+    } else {
+        unregister_code16(replacement);
+    }
+}
 
-// shift なし (記号そのものを送りたいキー)
-const key_override_t ko_grv  = KO_UNSHIFTED(KC_GRV,  JP_GRV);
-const key_override_t ko_mins = KO_UNSHIFTED(KC_MINS, JP_MINS);
-const key_override_t ko_eql  = KO_UNSHIFTED(KC_EQL,  JP_EQL);
-const key_override_t ko_lbrc = KO_UNSHIFTED(KC_LBRC, JP_LBRC);
-const key_override_t ko_rbrc = KO_UNSHIFTED(KC_RBRC, JP_RBRC);
-const key_override_t ko_bsls = KO_UNSHIFTED(KC_BSLS, JP_BSLS);
-const key_override_t ko_scln = KO_UNSHIFTED(KC_SCLN, JP_SCLN);
-const key_override_t ko_quot = KO_UNSHIFTED(KC_QUOT, JP_QUOT);
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    const uint8_t real_mods   = get_mods();
+    const uint8_t shift_mods  = real_mods & MOD_MASK_SHIFT;
 
-// shift あり (US で Shift+X として表現される記号)
-const key_override_t ko_s_grv  = ko_make_basic(MOD_MASK_SHIFT, KC_GRV,  JP_TILD);
-const key_override_t ko_s_2    = ko_make_basic(MOD_MASK_SHIFT, KC_2,    JP_AT);
-const key_override_t ko_s_6    = ko_make_basic(MOD_MASK_SHIFT, KC_6,    JP_CIRC);
-const key_override_t ko_s_7    = ko_make_basic(MOD_MASK_SHIFT, KC_7,    JP_AMPR);
-const key_override_t ko_s_8    = ko_make_basic(MOD_MASK_SHIFT, KC_8,    JP_ASTR);
-const key_override_t ko_s_9    = ko_make_basic(MOD_MASK_SHIFT, KC_9,    JP_LPRN);
-const key_override_t ko_s_0    = ko_make_basic(MOD_MASK_SHIFT, KC_0,    JP_RPRN);
-const key_override_t ko_s_mins = ko_make_basic(MOD_MASK_SHIFT, KC_MINS, JP_UNDS);
-const key_override_t ko_s_eql  = ko_make_basic(MOD_MASK_SHIFT, KC_EQL,  JP_PLUS);
-const key_override_t ko_s_lbrc = ko_make_basic(MOD_MASK_SHIFT, KC_LBRC, JP_LCBR);
-const key_override_t ko_s_rbrc = ko_make_basic(MOD_MASK_SHIFT, KC_RBRC, JP_RCBR);
-const key_override_t ko_s_bsls = ko_make_basic(MOD_MASK_SHIFT, KC_BSLS, JP_PIPE);
-const key_override_t ko_s_scln = ko_make_basic(MOD_MASK_SHIFT, KC_SCLN, JP_COLN);
-const key_override_t ko_s_quot = ko_make_basic(MOD_MASK_SHIFT, KC_QUOT, JP_DQUO);
+    // QK_MODS (S(KC_x) のような Shift合成キー) を basic に剥がす。
+    // それ以外の高位 keycode (LT, MT, custom) は素通し。
+    uint16_t basic = keycode;
+    bool     synthetic_shift = false;
+    if (keycode >= QK_MODS && keycode <= QK_MODS_MAX) {
+        const uint8_t mod_bits = QK_MODS_GET_MODS(keycode);
+        // 5bit 圧縮形式: 下位2bitsがmod種別、bit4がL/R。Shift だけ拾えれば充分。
+        if ((mod_bits & 0x0F) == MOD_LSFT) {
+            synthetic_shift = true;
+            basic = QK_MODS_GET_BASIC_KEYCODE(keycode);
+        } else {
+            return true; // Shift 以外の修飾付き合成キーは素通し
+        }
+    } else if (keycode > 0xFF) {
+        return true; // LT/MT/独自キーコードは素通し
+    }
 
-const key_override_t **key_overrides = (const key_override_t *[]){
-    &ko_grv, &ko_mins, &ko_eql, &ko_lbrc, &ko_rbrc, &ko_bsls, &ko_scln, &ko_quot,
-    &ko_s_grv, &ko_s_2, &ko_s_6, &ko_s_7, &ko_s_8, &ko_s_9, &ko_s_0,
-    &ko_s_mins, &ko_s_eql, &ko_s_lbrc, &ko_s_rbrc, &ko_s_bsls, &ko_s_scln, &ko_s_quot,
-    NULL
-};
+    const bool is_shifted = (shift_mods != 0) || synthetic_shift;
+    uint16_t   replacement = 0;
+
+    if (is_shifted) {
+        switch (basic) {
+            case KC_2:    replacement = JP_AT;   break;
+            case KC_6:    replacement = JP_CIRC; break;
+            case KC_7:    replacement = JP_AMPR; break;
+            case KC_8:    replacement = JP_ASTR; break;
+            case KC_9:    replacement = JP_LPRN; break;
+            case KC_0:    replacement = JP_RPRN; break;
+            case KC_MINS: replacement = JP_UNDS; break;
+            case KC_EQL:  replacement = JP_PLUS; break;
+            case KC_LBRC: replacement = JP_LCBR; break;
+            case KC_RBRC: replacement = JP_RCBR; break;
+            case KC_BSLS: replacement = JP_PIPE; break;
+            case KC_SCLN: replacement = JP_COLN; break;
+            case KC_QUOT: replacement = JP_DQUO; break;
+            case KC_GRV:  replacement = JP_TILD; break;
+            default:      return true;
+        }
+    } else {
+        switch (basic) {
+            case KC_GRV:  replacement = JP_GRV;  break;
+            case KC_MINS: replacement = JP_MINS; break;
+            case KC_EQL:  replacement = JP_EQL;  break;
+            case KC_LBRC: replacement = JP_LBRC; break;
+            case KC_RBRC: replacement = JP_RBRC; break;
+            case KC_BSLS: replacement = JP_BSLS; break;
+            case KC_QUOT: replacement = JP_QUOT; break;
+            // KC_SCLN は素の `;` で JIS でも一致するため変換不要
+            default:      return true;
+        }
+    }
+
+    // 物理 Shift を一時的に取り除いて replacement を送る。
+    // press / release の両方で同じ手順を踏むので Shift 状態は必ず元に戻る。
+    if (shift_mods) {
+        del_mods(shift_mods);
+        send_keyboard_report();
+    }
+    send_jis_replacement(replacement, record->event.pressed);
+    if (shift_mods) {
+        set_mods(real_mods);
+        send_keyboard_report();
+    }
+    return false;
+}
