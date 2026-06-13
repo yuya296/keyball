@@ -88,6 +88,16 @@ bool auto_mouse_activation(report_mouse_t mouse_report) {
         acc_x = acc_y = 0;
         return true;
     }
+    // ボールが完全停止しているフレームでは累積をリセットする。
+    // これにより「連続したボール操作」中だけ累積が積み上がり、タイピングの合間に
+    // ボールへ単発で軽く触れた程度の入力は止まるたびにクリアされて溜まらない。
+    // (QMK 標準は非マウスキーで total_mouse_movement を reset するが、自前 acc は
+    //  その対象外のため、ここで明示的に減衰させる。)
+    if (mouse_report.x == 0 && mouse_report.y == 0 &&
+        mouse_report.h == 0 && mouse_report.v == 0) {
+        acc_x = acc_y = 0;
+        return false;
+    }
     acc_x += mouse_report.x + mouse_report.h;
     acc_y += mouse_report.y + mouse_report.v;
     if (acc_x > AUTO_MOUSE_THRESHOLD || acc_x < -AUTO_MOUSE_THRESHOLD ||
