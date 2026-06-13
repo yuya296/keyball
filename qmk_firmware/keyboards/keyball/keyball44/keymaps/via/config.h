@@ -37,3 +37,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #define POINTING_DEVICE_AUTO_MOUSE_ENABLE
 #define AUTO_MOUSE_DEFAULT_LAYER 1
+// AML 起動に必要な累積移動量。QMK 0.24.0 で追加された機能 (PR #21398)。
+// 未定義時のデフォルト 10 では振動程度で AML へ飛ぶため引き上げる。
+#define AUTO_MOUSE_THRESHOLD 30
