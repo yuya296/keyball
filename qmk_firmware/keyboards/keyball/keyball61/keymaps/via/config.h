@@ -37,3 +37,5 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #define POINTING_DEVICE_AUTO_MOUSE_ENABLE
 #define AUTO_MOUSE_DEFAULT_LAYER 2
+// QMK デフォルトの 10 は CPI に対して小さく軽く触れただけで AML へ飛ぶため引き上げる。
+#define AUTO_MOUSE_THRESHOLD 30
