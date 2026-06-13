@@ -63,6 +63,42 @@ layer_state_t layer_state_set_user(layer_state_t state) {
     return state;
 }
 
+// ---- AML: 起動しきい値と維持しきい値を分離する ----
+// QMK 標準の auto_mouse_activation は起動・維持の両方に同じ AUTO_MOUSE_THRESHOLD を
+// 使うため、起動を鈍く (誤爆防止) すると維持も鈍くなり、しきい値未満のゆっくりした
+// 移動中に維持タイマーが延命されず AML が切れてしまう。そこで weak 関数を上書きして
+// 2 つのしきい値を分ける:
+//   - 起動 (AML レイヤー OFF 時): 累積移動量 > AUTO_MOUSE_THRESHOLD。鈍い (誤爆しない)。
+//   - 維持 (AML レイヤー ON  時): 1 ドットの動き / スクロール / ボタンで維持。敏感。
+//     完全停止すれば false を返し、QMK 本体が AUTO_MOUSE_TIME 経過で解除する。
+// 状態は現在 AML レイヤーが ON かどうか (get_auto_mouse_layer) だけで判定する。
+// Keyball の via 構成では AML レイヤーへ手動で入る運用が無いため、これで十分。
+#ifdef POINTING_DEVICE_AUTO_MOUSE_ENABLE
+bool auto_mouse_activation(report_mouse_t mouse_report) {
+    static int32_t acc_x = 0, acc_y = 0;
+
+    if (layer_state_is(get_auto_mouse_layer())) {
+        // 維持: Keyball ではスクロールも h/v に乗るので含める。
+        return mouse_report.x != 0 || mouse_report.y != 0 ||
+               mouse_report.h != 0 || mouse_report.v != 0 || mouse_report.buttons;
+    }
+    // 起動: ボタン、または累積移動量がしきい値を超えたら起動。
+    // どちらの経路でも起動時に累積をリセットし、AML 解除後に残骸で即再起動しないようにする。
+    if (mouse_report.buttons) {
+        acc_x = acc_y = 0;
+        return true;
+    }
+    acc_x += mouse_report.x + mouse_report.h;
+    acc_y += mouse_report.y + mouse_report.v;
+    if (acc_x > AUTO_MOUSE_THRESHOLD || acc_x < -AUTO_MOUSE_THRESHOLD ||
+        acc_y > AUTO_MOUSE_THRESHOLD || acc_y < -AUTO_MOUSE_THRESHOLD) {
+        acc_x = acc_y = 0;
+        return true;
+    }
+    return false;
+}
+#endif
+
 #ifdef OLED_ENABLE
 
 #    include "lib/oledkit/oledkit.h"
