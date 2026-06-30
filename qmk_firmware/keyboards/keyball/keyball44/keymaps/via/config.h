@@ -40,4 +40,4 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // AML 起動に必要な累積移動量。QMK 0.24.0 で追加された機能 (PR #21398)。
 // 振動誤爆は keymap.c の auto_mouse_activation (停止フレームで累積リセット) で
 // 抑えているため、起動しやすさを優先してデフォルト相当の 10 にする。
-#define AUTO_MOUSE_THRESHOLD 4
+#define AUTO_MOUSE_THRESHOLD 2
